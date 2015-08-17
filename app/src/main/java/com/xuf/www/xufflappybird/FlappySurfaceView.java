@@ -6,6 +6,7 @@ import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.PixelFormat;
 import android.graphics.RectF;
+import android.util.Log;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 
@@ -79,6 +80,8 @@ public class FlappySurfaceView extends SurfaceView implements Runnable, SurfaceH
 
         mPipeX = mViewWidth;
         mPipeWidth = mViewWidth / 7;
+
+        height = new Random().nextFloat() * (mMaxPipeHeight - mMinPipeHeight) + mMinPipeHeight;
     }
 
     @Override
@@ -120,9 +123,9 @@ public class FlappySurfaceView extends SurfaceView implements Runnable, SurfaceH
         if (mCanvas != null){
             //draw
             _drawBackground();
-            _drawLand();
             _drawBird();
             _drawPipe();
+            _drawLand();
         }
         mSurfaceHolder.unlockCanvasAndPost(mCanvas);
     }
@@ -151,13 +154,13 @@ public class FlappySurfaceView extends SurfaceView implements Runnable, SurfaceH
         mCanvas.drawBitmap(mBirdBitmap, null, rectF, null);
     }
 
+    float height;
     private void _drawPipe(){
-        float height = new Random().nextFloat() * (mMaxPipeHeight - mMinPipeHeight) + mMinPipeHeight;
         RectF rectF = new RectF(mViewWidth / 2, 0, mViewWidth / 2 + mPipeWidth, mLandY);
         mCanvas.save();
         mCanvas.translate(0, -(mLandY - height));
         mCanvas.drawBitmap(mPipeUpBitmap, null, rectF, null);
-        mCanvas.translate(0, mLandY - height + mPipeGap);
+        mCanvas.translate(0, mLandY - height + height + mPipeGap);
         mCanvas.drawBitmap(mPipeDownBitmap, null, rectF, null);
         mCanvas.restore();
     }
