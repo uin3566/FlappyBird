@@ -6,7 +6,6 @@ import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.PixelFormat;
 import android.graphics.RectF;
-import android.util.Log;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 
@@ -18,6 +17,7 @@ import java.util.Random;
 public class FlappySurfaceView extends SurfaceView implements Runnable, SurfaceHolder.Callback{
 
     private static final float mXSpeed = 10;
+    private static final int mPipeCountInScreen = 3;
 
     private Context mContext;
 
@@ -40,8 +40,10 @@ public class FlappySurfaceView extends SurfaceView implements Runnable, SurfaceH
     private float mMinPipeHeight;
     private float mMaxPipeHeight;
     private float mPipeGap;
-    private float mPipeX;
+    private float mPipeX1;
+    private float mPipeX2;
     private float mPipeWidth;
+    private float mUpPipeHeight;
 
     public FlappySurfaceView(Context context) {
         super(context);
@@ -78,10 +80,9 @@ public class FlappySurfaceView extends SurfaceView implements Runnable, SurfaceH
         mMinPipeHeight = mPipeGap * 1;
         mMaxPipeHeight = mPipeGap * 5;
 
-        mPipeX = mViewWidth;
         mPipeWidth = mViewWidth / 7;
-
-        height = new Random().nextFloat() * (mMaxPipeHeight - mMinPipeHeight) + mMinPipeHeight;
+        mPipeX1 = mViewWidth;
+        mPipeX2 = mPipeX1 + mViewWidth / 2 + mPipeWidth / 2;
     }
 
     @Override
@@ -154,9 +155,32 @@ public class FlappySurfaceView extends SurfaceView implements Runnable, SurfaceH
         mCanvas.drawBitmap(mBirdBitmap, null, rectF, null);
     }
 
-    float height;
     private void _drawPipe(){
-        RectF rectF = new RectF(mViewWidth / 2, 0, mViewWidth / 2 + mPipeWidth, mLandY);
+        if (mPipeX1 == mPipeWidth){
+            mUpPipeHeight = new Random().nextFloat() * (mMaxPipeHeight - mMinPipeHeight) + mMinPipeHeight;
+        }
+        if (mPipeX1 > -mPipeWidth){
+            _drawOnePipe(mPipeX1, mUpPipeHeight);
+        }
+        mPipeX1 -= 10;
+        mPipeX2 -= 10;
+        if (mPipeX2 == mPipeWidth){
+            mUpPipeHeight = new Random().nextFloat() * (mMaxPipeHeight - mMinPipeHeight) + mMinPipeHeight;
+        }
+        if (mPipeX2 > -mPipeWidth && mPipeX2 < mViewWidth){
+            _drawOnePipe(mPipeX2, mUpPipeHeight);
+        }
+        if (mPipeX1 <= -mPipeWidth){
+            mPipeX1 = mViewWidth;
+        }
+        if (mPipeX2 <= -mPipeWidth){
+            mPipeX2 = mViewWidth;
+        }
+
+    }
+
+    private void _drawOnePipe(float x, float height){
+        RectF rectF = new RectF(x, 0, x + mPipeWidth, mLandY);
         mCanvas.save();
         mCanvas.translate(0, -(mLandY - height));
         mCanvas.drawBitmap(mPipeUpBitmap, null, rectF, null);
