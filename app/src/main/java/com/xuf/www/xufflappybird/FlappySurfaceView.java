@@ -20,6 +20,7 @@ import java.util.Random;
 public class FlappySurfaceView extends SurfaceView implements Runnable, SurfaceHolder.Callback, View.OnTouchListener{
 
     private static final float mXSpeed = 10;
+    private static final float mYDownSpeed = 6;
 
     private Context mContext;
 
@@ -57,6 +58,9 @@ public class FlappySurfaceView extends SurfaceView implements Runnable, SurfaceH
     private float mUpPipeHeight1;
     private float mUpPipeHeight2;
 
+    private float mBirdJump;
+    private float mBirdDownDis;
+
     public FlappySurfaceView(Context context) {
         super(context);
         mContext = context;
@@ -93,6 +97,7 @@ public class FlappySurfaceView extends SurfaceView implements Runnable, SurfaceH
 
         mBirdSize = mViewWidth / 10;
         mBirdY = mLandY / 2 - mBirdSize;
+        mBirdJump = mBirdSize / 3;
 
         mPipeGap = mLandY / 5;
         mMinPipeHeight = mPipeGap * 0.5f;
@@ -142,16 +147,24 @@ public class FlappySurfaceView extends SurfaceView implements Runnable, SurfaceH
     @Override
     public boolean onTouch(View v, MotionEvent event) {
         switch (event.getAction()){
-            case MotionEvent.ACTION_UP:
+            case MotionEvent.ACTION_DOWN:
                 if (mGameStatus == GameStatus.WAITING){
                     mGameStatus = GameStatus.RUNNING;
                     break;
                 } else {
-
+                    mBirdDownDis = -mBirdJump;
+                    break;
                 }
         }
 
         return true;
+    }
+
+    private void _calc(){
+        if (mGameStatus == GameStatus.RUNNING){
+            mBirdDownDis += mYDownSpeed;
+            mBirdY += mBirdDownDis;
+        }
     }
 
     private void _draw(){
@@ -217,9 +230,5 @@ public class FlappySurfaceView extends SurfaceView implements Runnable, SurfaceH
         mCanvas.translate(0, mLandY - height + height + mPipeGap);
         mCanvas.drawBitmap(mPipeDownBitmap, null, rectF, null);
         mCanvas.restore();
-    }
-
-    private void _calc(){
-
     }
 }
