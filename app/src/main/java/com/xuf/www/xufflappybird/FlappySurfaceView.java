@@ -6,7 +6,6 @@ import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.PixelFormat;
 import android.graphics.RectF;
-import android.hardware.Camera;
 import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
@@ -26,7 +25,8 @@ public class FlappySurfaceView extends SurfaceView implements Runnable, SurfaceH
 
     private enum GameStatus{
         WAITING,
-        RUNNING
+        RUNNING,
+        OVER
     }
 
     private GameStatus mGameStatus;
@@ -46,7 +46,8 @@ public class FlappySurfaceView extends SurfaceView implements Runnable, SurfaceH
     private float mViewWidth;
     private float mViewHeight;
     private float mBirdY;
-    private float mBirdSize;
+    private float mBirdWidth;
+    private float mBirdHeight;
     private float mLandY;
     private float mLandX = 0;
     private float mMinPipeHeight;
@@ -95,9 +96,10 @@ public class FlappySurfaceView extends SurfaceView implements Runnable, SurfaceH
 
         mLandY = h / 5 * 4;
 
-        mBirdSize = mViewWidth / 10;
-        mBirdY = mLandY / 2 - mBirdSize;
-        mBirdJump = mBirdSize / 3;
+        mBirdWidth = mViewWidth / 10;
+        mBirdHeight = mBirdWidth * 0.75f;
+        mBirdY = mLandY / 2 - mBirdHeight;
+        mBirdJump = mBirdHeight / 2.5f;
 
         mPipeGap = mLandY / 5;
         mMinPipeHeight = mPipeGap * 0.5f;
@@ -107,6 +109,15 @@ public class FlappySurfaceView extends SurfaceView implements Runnable, SurfaceH
         mPipeX2 = mPipeX1 + mViewWidth / 2 + mPipeWidth / 2;
         mUpPipeHeight1 = new Random().nextFloat() * (mMaxPipeHeight - mMinPipeHeight) + mMinPipeHeight;
         mUpPipeHeight2 = new Random().nextFloat() * (mMaxPipeHeight - mMinPipeHeight) + mMinPipeHeight;
+    }
+
+    private void _reset(){
+        mBirdY = mLandY / 2 - mBirdHeight;
+        mPipeX1 = mViewWidth;
+        mPipeX2 = mPipeX1 + mViewWidth / 2 + mPipeWidth / 2;
+        mUpPipeHeight1 = new Random().nextFloat() * (mMaxPipeHeight - mMinPipeHeight) + mMinPipeHeight;
+        mUpPipeHeight2 = new Random().nextFloat() * (mMaxPipeHeight - mMinPipeHeight) + mMinPipeHeight;
+        _draw();
     }
 
     @Override
@@ -139,7 +150,6 @@ public class FlappySurfaceView extends SurfaceView implements Runnable, SurfaceH
                 } catch (InterruptedException e){
                     e.printStackTrace();
                 }
-
             }
         }
     }
@@ -151,9 +161,12 @@ public class FlappySurfaceView extends SurfaceView implements Runnable, SurfaceH
                 if (mGameStatus == GameStatus.WAITING){
                     mGameStatus = GameStatus.RUNNING;
                     break;
-                } else {
+                } else if (mGameStatus == GameStatus.RUNNING){
                     mBirdDownDis = -mBirdJump;
                     break;
+                } else {
+                    _reset();
+                    mGameStatus = GameStatus.WAITING;
                 }
         }
 
@@ -164,6 +177,14 @@ public class FlappySurfaceView extends SurfaceView implements Runnable, SurfaceH
         if (mGameStatus == GameStatus.RUNNING){
             mBirdDownDis += mYDownSpeed;
             mBirdY += mBirdDownDis;
+            if (mBirdY < -mBirdHeight){
+                mBirdY = -mBirdHeight;
+            }
+            if (mBirdY > mLandY - mBirdHeight){
+                mGameStatus = GameStatus.OVER;
+                mIsRunning = false;
+                mBirdY = mLandY - mBirdHeight;
+            }
         }
     }
 
@@ -196,8 +217,8 @@ public class FlappySurfaceView extends SurfaceView implements Runnable, SurfaceH
     }
 
     private void _drawBird(){
-        float birdX = mViewWidth / 2 - mBirdSize;
-        RectF rectF = new RectF(birdX, mBirdY, birdX + mBirdSize, mBirdY + mBirdSize);
+        float birdX = mViewWidth / 2 - mBirdWidth;
+        RectF rectF = new RectF(birdX, mBirdY, birdX + mBirdWidth, mBirdY + mBirdHeight);
         mCanvas.drawBitmap(mBirdBitmap, null, rectF, null);
     }
 
