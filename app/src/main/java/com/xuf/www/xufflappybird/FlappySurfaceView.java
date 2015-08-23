@@ -11,6 +11,8 @@ import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 
 /**
@@ -19,7 +21,7 @@ import java.util.Random;
 public class FlappySurfaceView extends SurfaceView implements Runnable, SurfaceHolder.Callback, View.OnTouchListener{
 
     private static final float mXSpeed = 10;
-    private static final float mYDownSpeed = 6;
+    private static final float mYDownAccelerate = 6;
 
     private Context mContext;
 
@@ -30,21 +32,31 @@ public class FlappySurfaceView extends SurfaceView implements Runnable, SurfaceH
     }
 
     private GameStatus mGameStatus;
+    private int[] mScores = {R.mipmap.font_0, R.mipmap.font_1, R.mipmap.font_2, R.mipmap.font_3,
+                             R.mipmap.font_4, R.mipmap.font_5, R.mipmap.font_6, R.mipmap.font_7,
+                             R.mipmap.font_8, R.mipmap.font_9};
 
     private SurfaceHolder mSurfaceHolder;
     private Canvas mCanvas;
     private Thread mThread;
     private boolean mIsRunning;
+    private int mScore;
+    private boolean mPlusScoreFlag1 = true;
+    private boolean mPlusScoreFlag2 = true;
 
     private Bitmap mDayBgBitmap;
-    private Bitmap mNightBgBitmap;
     private Bitmap mLandBitmap;
-    private Bitmap mBirdBitmap;
+    private List<Bitmap> mBirdBitmaps = new ArrayList<>();
     private Bitmap mPipeDownBitmap;
     private Bitmap mPipeUpBitmap;
+    private Bitmap mGetReadyBitmap;
+    private Bitmap mTutorialBitmap;
+    private Bitmap mTitleBitmap;
+    private Bitmap mGameOverBitmap;
 
     private float mViewWidth;
     private float mViewHeight;
+    private float mBirdX;
     private float mBirdY;
     private float mBirdWidth;
     private float mBirdHeight;
@@ -61,6 +73,7 @@ public class FlappySurfaceView extends SurfaceView implements Runnable, SurfaceH
 
     private float mBirdJump;
     private float mBirdDownDis;
+    private int mBirdWingAnim;
 
     public FlappySurfaceView(Context context) {
         super(context);
@@ -80,11 +93,19 @@ public class FlappySurfaceView extends SurfaceView implements Runnable, SurfaceH
 
     private void _initResources(){
         mDayBgBitmap = BitmapFactory.decodeResource(getResources(), R.mipmap.bg_day);
-        mNightBgBitmap = BitmapFactory.decodeResource(getResources(), R.mipmap.bg_night);
         mLandBitmap = BitmapFactory.decodeResource(getResources(), R.mipmap.land);
-        mBirdBitmap = BitmapFactory.decodeResource(getResources(), R.mipmap.bird0_0);
+        Bitmap bird1 = BitmapFactory.decodeResource(getResources(), R.mipmap.bird0_0);
+        Bitmap bird2 = BitmapFactory.decodeResource(getResources(), R.mipmap.bird0_1);
+        Bitmap bird3 = BitmapFactory.decodeResource(getResources(), R.mipmap.bird0_2);
+        mBirdBitmaps.add(bird1);
+        mBirdBitmaps.add(bird2);
+        mBirdBitmaps.add(bird3);
         mPipeDownBitmap = BitmapFactory.decodeResource(getResources(), R.mipmap.pipe_down);
         mPipeUpBitmap = BitmapFactory.decodeResource(getResources(), R.mipmap.pipe_up);
+        mGetReadyBitmap = BitmapFactory.decodeResource(getResources(), R.mipmap.get_ready);
+        mTutorialBitmap = BitmapFactory.decodeResource(getResources(), R.mipmap.tutorial);
+        mTitleBitmap = BitmapFactory.decodeResource(getResources(), R.mipmap.title);
+        mGameOverBitmap = BitmapFactory.decodeResource(getResources(), R.mipmap.game_over);
     }
 
     @Override
@@ -112,6 +133,10 @@ public class FlappySurfaceView extends SurfaceView implements Runnable, SurfaceH
     }
 
     private void _reset(){
+        mBirdDownDis = 0;
+        mScore = 0;
+        mPlusScoreFlag1 = true;
+        mPlusScoreFlag2 = true;
         mBirdY = mLandY / 2 - mBirdHeight;
         mPipeX1 = mViewWidth;
         mPipeX2 = mPipeX1 + mViewWidth / 2 + mPipeWidth / 2;
@@ -173,18 +198,57 @@ public class FlappySurfaceView extends SurfaceView implements Runnable, SurfaceH
         return true;
     }
 
+    private boolean _isGameOver(){
+        if (mBirdY > mLandY - mBirdHeight){
+            mBirdY = mLandY - mBirdHeight;
+            return true;
+        }
+        boolean isCrashPipe = _checkPipeCrash(mPipeX1, mUpPipeHeight1);
+        if (isCrashPipe){
+            return true;
+        }
+        isCrashPipe = _checkPipeCrash(mPipeX2, mUpPipeHeight2);
+        if (isCrashPipe){
+            return true;
+        }
+        return false;
+    }
+
+    private boolean _checkPipeCrash(float pipeX, float upPipeHeight){
+        //管道还没撞到鸟
+        if (pipeX > mBirdX + mBirdWidth){
+            return false;
+        }
+        //鸟在管道范围内，根据管道高度判断管道是否和鸟接触
+        if (pipeX < mBirdX + mBirdWidth && pipeX > mBirdX + mBirdWidth - mPipeWidth - mBirdWidth){
+            if (mBirdY > upPipeHeight && mBirdY + mBirdHeight < upPipeHeight + mPipeGap){
+                return false;
+            } else {
+                if (mBirdY < upPipeHeight){
+                    mBirdY = upPipeHeight;
+                }
+                if (mBirdY > upPipeHeight + mPipeGap - mBirdHeight){
+                    mBirdY = upPipeHeight + mPipeGap - mBirdHeight;
+                }
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private void _calc(){
         if (mGameStatus == GameStatus.RUNNING){
-            mBirdDownDis += mYDownSpeed;
+            mBirdDownDis += mYDownAccelerate;
             mBirdY += mBirdDownDis;
             if (mBirdY < -mBirdHeight){
                 mBirdY = -mBirdHeight;
             }
-            if (mBirdY > mLandY - mBirdHeight){
+            if (_isGameOver()){
                 mGameStatus = GameStatus.OVER;
-                mIsRunning = false;
-                mBirdY = mLandY - mBirdHeight;
             }
+        } else if (mGameStatus == GameStatus.OVER){
+
         }
     }
 
@@ -194,7 +258,16 @@ public class FlappySurfaceView extends SurfaceView implements Runnable, SurfaceH
             //draw
             _drawBackground();
             _drawBird();
-            _drawPipe();
+            if (mGameStatus != GameStatus.WAITING){
+                _drawPipe();
+            }
+            if (mGameStatus == GameStatus.WAITING){
+                _drawReady();
+            }
+            if (mGameStatus == GameStatus.OVER){
+                _drawGameOver();
+            }
+            _drawScore(mScore);
             _drawLand();
         }
         mSurfaceHolder.unlockCanvasAndPost(mCanvas);
@@ -206,7 +279,9 @@ public class FlappySurfaceView extends SurfaceView implements Runnable, SurfaceH
     }
 
     private void _drawLand(){
-        mLandX -= mXSpeed;
+        if (mGameStatus != GameStatus.OVER){
+            mLandX -= mXSpeed;
+        }
         if (Math.abs(mLandX) >= mViewWidth){
             mLandX = 0;
         }
@@ -217,9 +292,10 @@ public class FlappySurfaceView extends SurfaceView implements Runnable, SurfaceH
     }
 
     private void _drawBird(){
-        float birdX = mViewWidth / 2 - mBirdWidth;
-        RectF rectF = new RectF(birdX, mBirdY, birdX + mBirdWidth, mBirdY + mBirdHeight);
-        mCanvas.drawBitmap(mBirdBitmap, null, rectF, null);
+        mBirdX = mViewWidth / 2 - mBirdWidth;
+        RectF rectF = new RectF(mBirdX, mBirdY, mBirdX + mBirdWidth, mBirdY + mBirdHeight);
+        mCanvas.drawBitmap(mBirdBitmaps.get(mBirdWingAnim % 3), null, rectF, null);
+        mBirdWingAnim++;
     }
 
     private void _drawPipe(){
@@ -232,15 +308,28 @@ public class FlappySurfaceView extends SurfaceView implements Runnable, SurfaceH
 
         if (mPipeX1 <= -mPipeWidth){
             mPipeX1 = mViewWidth;
+            mPlusScoreFlag1 = true;
             mUpPipeHeight1 = new Random().nextFloat() * (mMaxPipeHeight - mMinPipeHeight) + mMinPipeHeight;
         }
         if (mPipeX2 <= -mPipeWidth){
             mPipeX2 = mViewWidth;
+            mPlusScoreFlag2 = true;
             mUpPipeHeight2 = new Random().nextFloat() * (mMaxPipeHeight - mMinPipeHeight) + mMinPipeHeight;
         }
 
-        mPipeX1 -= mXSpeed;
-        mPipeX2 -= mXSpeed;
+        if (mPipeX1 + mPipeWidth < mBirdX && mPlusScoreFlag1){
+            mScore++;
+            mPlusScoreFlag1 = false;
+        }
+        if (mPipeX2 + mPipeWidth < mBirdX && mPlusScoreFlag2){
+            mScore++;
+            mPlusScoreFlag2 = false;
+        }
+
+        if (mGameStatus != GameStatus.OVER){
+            mPipeX1 -= mXSpeed;
+            mPipeX2 -= mXSpeed;
+        }
     }
 
     private void _drawOnePipe(float x, float height){
@@ -251,5 +340,85 @@ public class FlappySurfaceView extends SurfaceView implements Runnable, SurfaceH
         mCanvas.translate(0, mLandY - height + height + mPipeGap);
         mCanvas.drawBitmap(mPipeDownBitmap, null, rectF, null);
         mCanvas.restore();
+    }
+
+    private void _drawScore(int score){
+        int hundred;
+        int decade;
+        int unit;
+        hundred = score / 100;
+        decade = score % 100 / 10;
+        unit = score % 10;
+        float numWidth = mBirdWidth / 2;
+        float numHeight = numWidth * 2;
+        float numGap = numWidth / 20;
+        float scoreWidth;
+        float top = mPipeGap;
+        float bottom = mPipeGap + numHeight;
+        float center = mViewWidth / 2;
+        if (hundred != 0){
+            scoreWidth = 3 * numWidth + 2 * numGap;
+            RectF rectF = new RectF(center - scoreWidth / 2, top, center - scoreWidth / 2 + numWidth, bottom);
+            Bitmap hundredBitmap = BitmapFactory.decodeResource(getResources(), mScores[hundred]);
+            mCanvas.drawBitmap(hundredBitmap, null, rectF, null);
+            rectF.set(center - numWidth / 2, top, center + numWidth / 2, bottom);
+            Bitmap decadeBitmap = BitmapFactory.decodeResource(getResources(), mScores[decade]);
+            mCanvas.drawBitmap(decadeBitmap, null, rectF, null);
+            rectF.set(center + numWidth / 2 + numGap, top, center + scoreWidth / 2 + numGap, bottom);
+            Bitmap unitBitmap = BitmapFactory.decodeResource(getResources(), mScores[unit]);
+            mCanvas.drawBitmap(unitBitmap, null, rectF, null);
+            hundredBitmap.recycle();
+            decadeBitmap.recycle();
+            unitBitmap.recycle();
+        }
+        if (hundred == 0 && decade != 0){
+            scoreWidth = 2 * numWidth + numGap;
+            RectF rectF = new RectF(center - scoreWidth / 2, top, center - scoreWidth / 2 + numWidth, bottom);
+            Bitmap decadeBitmap = BitmapFactory.decodeResource(getResources(), mScores[decade]);
+            mCanvas.drawBitmap(decadeBitmap, null, rectF, null);
+            rectF.set(center + numGap, top, center + numWidth + numGap, bottom);
+            Bitmap unitBitmap = BitmapFactory.decodeResource(getResources(), mScores[unit]);
+            mCanvas.drawBitmap(unitBitmap, null, rectF, null);
+            decadeBitmap.recycle();
+            unitBitmap.recycle();
+        }
+        if (hundred == 0 && decade == 0){
+            scoreWidth = numWidth;
+            RectF rectF = new RectF(center - scoreWidth / 2, top, center + scoreWidth / 2, bottom);
+            Bitmap bitmap = BitmapFactory.decodeResource(getResources(), mScores[unit]);
+            mCanvas.drawBitmap(bitmap, null, rectF, null);
+            bitmap.recycle();
+        }
+    }
+
+    private void _drawReady(){
+        float center = mViewWidth / 2;
+
+        float getReadyWidth = mPipeWidth * 3;
+        float getReadyHeight = mPipeGap * 0.7f;
+        float getReadyY = mBirdY + mBirdHeight * 2;
+        RectF rectF = new RectF(center - getReadyWidth / 2, getReadyY, center + getReadyWidth / 2, getReadyY + getReadyHeight);
+        mCanvas.drawBitmap(mGetReadyBitmap, null, rectF, null);
+
+        float tutorialWidth = getReadyWidth;
+        float tutorialHeight = getReadyHeight * 2;
+        float tutorialY = getReadyY + getReadyHeight;
+        rectF.set(center - tutorialWidth / 2, tutorialY, center + tutorialWidth / 2, tutorialY + tutorialHeight);
+        mCanvas.drawBitmap(mTutorialBitmap, null, rectF, null);
+
+        float titleWidth = getReadyWidth * 1.2f;
+        float titleHeight = getReadyHeight * 0.6f;
+        float titleY = mPipeGap * 0.4f;
+        rectF.set(center - titleWidth / 2, titleY, center + titleWidth / 2, titleY + titleHeight);
+        mCanvas.drawBitmap(mTitleBitmap, null, rectF, null);
+    }
+
+    private void _drawGameOver(){
+        float center = mViewWidth / 2;
+        float gameOverWidth = mPipeWidth * 3;
+        float gameOverHeight = mPipeGap * 0.7f;
+        float gameOverY = mLandY / 2;
+        RectF rectF = new RectF(center - gameOverWidth / 2, gameOverY, center + gameOverWidth / 2, gameOverY + gameOverHeight);
+        mCanvas.drawBitmap(mGameOverBitmap, null, rectF, null);
     }
 }
