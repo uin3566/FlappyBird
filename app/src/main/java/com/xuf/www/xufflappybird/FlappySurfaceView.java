@@ -220,7 +220,9 @@ public class FlappySurfaceView extends SurfaceView implements Runnable, SurfaceH
             return false;
         }
         //鸟在管道范围内，根据管道高度判断管道是否和鸟接触
-        if (pipeX < mBirdX + mBirdWidth && pipeX > mBirdX + mBirdWidth - mPipeWidth - mBirdWidth){
+        if (pipeX < mBirdX + mBirdWidth && Math.abs(pipeX - mBirdX - mBirdWidth) >= mXSpeed
+                && pipeX > mBirdX + mBirdWidth - mPipeWidth - mBirdWidth
+                && Math.abs(pipeX - mBirdX - mBirdWidth + mPipeWidth + mBirdWidth) >= mXSpeed){
             if (mBirdY > upPipeHeight && mBirdY + mBirdHeight < upPipeHeight + mPipeGap){
                 return false;
             } else {
@@ -248,7 +250,13 @@ public class FlappySurfaceView extends SurfaceView implements Runnable, SurfaceH
                 mGameStatus = GameStatus.OVER;
             }
         } else if (mGameStatus == GameStatus.OVER){
-
+            if (mBirdY + mBirdHeight < mLandY){
+                mBirdDownDis += mYDownAccelerate;
+                mBirdY += mBirdDownDis;
+            }
+            if (mBirdY + mBirdHeight >= mLandY){
+                mBirdY = mLandY - mBirdHeight;
+            }
         }
     }
 
