@@ -21,7 +21,7 @@ import java.util.Random;
 public class FlappySurfaceView extends SurfaceView implements Runnable, SurfaceHolder.Callback, View.OnTouchListener{
 
     private static final float mXSpeed = 10;
-    private static final float mYDownAccelerate = 6;
+    private static final float mYDownAccelerate = 7;
 
     private Context mContext;
 
@@ -40,6 +40,14 @@ public class FlappySurfaceView extends SurfaceView implements Runnable, SurfaceH
     private Canvas mCanvas;
     private Thread mThread;
     private boolean mIsRunning;
+    //小鸟是否掉地上挂了
+    private boolean mDieOnLand;
+    //小鸟是否在外面撞到管道
+    private boolean mDieOutsidePipe;
+    //现在处于屏幕中间的管道是否是管道1
+    private boolean mCurPipeIsOne;
+    //若小鸟直接碰到下管道，则不需要更换bird0_4图
+    private boolean mNeedUseDownBitmap;
     private int mScore;
     private boolean mPlusScoreFlag1 = true;
     private boolean mPlusScoreFlag2 = true;
@@ -47,6 +55,7 @@ public class FlappySurfaceView extends SurfaceView implements Runnable, SurfaceH
     private Bitmap mDayBgBitmap;
     private Bitmap mLandBitmap;
     private List<Bitmap> mBirdBitmaps = new ArrayList<>();
+    private Bitmap mBirdDownBitmap;
     private Bitmap mPipeDownBitmap;
     private Bitmap mPipeUpBitmap;
     private Bitmap mGetReadyBitmap;
@@ -60,6 +69,9 @@ public class FlappySurfaceView extends SurfaceView implements Runnable, SurfaceH
     private float mBirdY;
     private float mBirdWidth;
     private float mBirdHeight;
+    //游戏结束下落的图宽高不一样，使用新的宽高
+    private float mBirdWidth2;
+    private float mBirdHeight2;
     private float mLandY;
     private float mLandX = 0;
     private float mMinPipeHeight;
@@ -100,6 +112,7 @@ public class FlappySurfaceView extends SurfaceView implements Runnable, SurfaceH
         mBirdBitmaps.add(bird1);
         mBirdBitmaps.add(bird2);
         mBirdBitmaps.add(bird3);
+        mBirdDownBitmap = BitmapFactory.decodeResource(getResources(), R.mipmap.bird0_4);
         mPipeDownBitmap = BitmapFactory.decodeResource(getResources(), R.mipmap.pipe_down);
         mPipeUpBitmap = BitmapFactory.decodeResource(getResources(), R.mipmap.pipe_up);
         mGetReadyBitmap = BitmapFactory.decodeResource(getResources(), R.mipmap.get_ready);
@@ -118,9 +131,11 @@ public class FlappySurfaceView extends SurfaceView implements Runnable, SurfaceH
         mLandY = h / 5 * 4;
 
         mBirdWidth = mViewWidth / 10;
-        mBirdHeight = mBirdWidth * 0.75f;
+        mBirdHeight = mBirdWidth * 0.7f;
+        mBirdWidth2 = mBirdHeight * 1.1f;
+        mBirdHeight2 = mBirdWidth;
         mBirdY = mLandY / 2 - mBirdHeight;
-        mBirdJump = mBirdHeight / 2.5f;
+        mBirdJump = mBirdHeight / 2;
 
         mPipeGap = mLandY / 5;
         mMinPipeHeight = mPipeGap * 0.5f;
@@ -133,6 +148,10 @@ public class FlappySurfaceView extends SurfaceView implements Runnable, SurfaceH
     }
 
     private void _reset(){
+        mDieOnLand = false;
+        mDieOutsidePipe = false;
+        mCurPipeIsOne = false;
+        mNeedUseDownBitmap = false;
         mBirdDownDis = 0;
         mScore = 0;
         mPlusScoreFlag1 = true;
@@ -201,14 +220,17 @@ public class FlappySurfaceView extends SurfaceView implements Runnable, SurfaceH
     private boolean _isGameOver(){
         if (mBirdY > mLandY - mBirdHeight){
             mBirdY = mLandY - mBirdHeight;
+            mDieOnLand = true;
             return true;
         }
         boolean isCrashPipe = _checkPipeCrash(mPipeX1, mUpPipeHeight1);
         if (isCrashPipe){
+            mCurPipeIsOne = true;
             return true;
         }
         isCrashPipe = _checkPipeCrash(mPipeX2, mUpPipeHeight2);
         if (isCrashPipe){
+            mCurPipeIsOne = false;
             return true;
         }
         return false;
@@ -220,18 +242,29 @@ public class FlappySurfaceView extends SurfaceView implements Runnable, SurfaceH
             return false;
         }
         //鸟在管道范围内，根据管道高度判断管道是否和鸟接触
-        if (pipeX < mBirdX + mBirdWidth && Math.abs(pipeX - mBirdX - mBirdWidth) >= mXSpeed
-                && pipeX > mBirdX + mBirdWidth - mPipeWidth - mBirdWidth
-                && Math.abs(pipeX - mBirdX - mBirdWidth + mPipeWidth + mBirdWidth) >= mXSpeed){
+        if (pipeX < mBirdX + mBirdWidth && pipeX - mBirdX - mBirdWidth < -mXSpeed
+                && pipeX > mBirdX + mBirdWidth - mPipeWidth - mBirdWidth){
             if (mBirdY > upPipeHeight && mBirdY + mBirdHeight < upPipeHeight + mPipeGap){
                 return false;
             } else {
-                if (mBirdY < upPipeHeight){
+                if (mBirdY <= upPipeHeight){
                     mBirdY = upPipeHeight;
+                    mNeedUseDownBitmap = true;
                 }
-                if (mBirdY > upPipeHeight + mPipeGap - mBirdHeight){
+                if (mBirdY >= upPipeHeight + mPipeGap - mBirdHeight){
                     mBirdY = upPipeHeight + mPipeGap - mBirdHeight;
+                    mNeedUseDownBitmap = false;
                 }
+                mDieOutsidePipe = false;
+                return true;
+            }
+        //鸟在管道范围外，根据管道高度判断管道是否和鸟接触
+        } else if (pipeX < mBirdX + mBirdWidth && pipeX - mBirdX - mBirdWidth >= -mXSpeed){
+            if (mBirdY > upPipeHeight && mBirdY + mBirdHeight < upPipeHeight + mPipeGap){
+                return false;
+            } else {
+                mDieOutsidePipe = true;
+                mNeedUseDownBitmap = true;
                 return true;
             }
         }
@@ -250,12 +283,35 @@ public class FlappySurfaceView extends SurfaceView implements Runnable, SurfaceH
                 mGameStatus = GameStatus.OVER;
             }
         } else if (mGameStatus == GameStatus.OVER){
-            if (mBirdY + mBirdHeight < mLandY){
-                mBirdDownDis += mYDownAccelerate;
-                mBirdY += mBirdDownDis;
+            if (mDieOnLand){
+                return;
             }
-            if (mBirdY + mBirdHeight >= mLandY){
-                mBirdY = mLandY - mBirdHeight;
+            if (mDieOutsidePipe){
+                if (mBirdY + mBirdHeight2 < mLandY){
+                    mBirdDownDis += mYDownAccelerate;
+                    mBirdY += mBirdDownDis;
+                }
+                if (mBirdY + mBirdHeight2 >= mLandY){
+                    mBirdY = mLandY - mBirdHeight2;
+                }
+            } else {
+                float mCurUpPipeHeight;
+                if (mCurPipeIsOne){
+                    mCurUpPipeHeight = mUpPipeHeight1;
+                } else {
+                    mCurUpPipeHeight = mUpPipeHeight2;
+                }
+                if (mBirdY + mBirdHeight < mCurUpPipeHeight + mPipeGap){
+                    mBirdDownDis += mYDownAccelerate;
+                    mBirdY += mBirdDownDis;
+                }
+                if (mBirdY + mBirdHeight2 > mCurUpPipeHeight + mPipeGap){
+                    if (mNeedUseDownBitmap){
+                        mBirdY = mCurUpPipeHeight + mPipeGap - mBirdHeight2;
+                    }else {
+                        mBirdY = mCurUpPipeHeight + mPipeGap - mBirdHeight;
+                    }
+                }
             }
         }
     }
@@ -302,7 +358,18 @@ public class FlappySurfaceView extends SurfaceView implements Runnable, SurfaceH
     private void _drawBird(){
         mBirdX = mViewWidth / 2 - mBirdWidth;
         RectF rectF = new RectF(mBirdX, mBirdY, mBirdX + mBirdWidth, mBirdY + mBirdHeight);
-        mCanvas.drawBitmap(mBirdBitmaps.get(mBirdWingAnim % 3), null, rectF, null);
+
+        if (mGameStatus != GameStatus.OVER){
+            mCanvas.drawBitmap(mBirdBitmaps.get(mBirdWingAnim % 3), null, rectF, null);
+        } else {
+            if (mNeedUseDownBitmap){
+                rectF.set(mBirdX, mBirdY, mBirdX + mBirdWidth2, mBirdY + mBirdHeight2);
+                mCanvas.drawBitmap(mBirdDownBitmap, null, rectF, null);
+            } else {
+                mCanvas.drawBitmap(mBirdBitmaps.get(1), null, rectF, null);
+            }
+        }
+
         mBirdWingAnim++;
     }
 
