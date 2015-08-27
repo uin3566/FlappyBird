@@ -6,6 +6,7 @@ import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.PixelFormat;
 import android.graphics.RectF;
+import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
@@ -88,7 +89,11 @@ public class FlappySurfaceView extends SurfaceView implements Runnable, SurfaceH
     private int mBirdWingAnim;
 
     public FlappySurfaceView(Context context) {
-        super(context);
+        this(context, null);
+    }
+
+    public FlappySurfaceView(Context context, AttributeSet attrs) {
+        super(context, attrs);
         mContext = context;
 
         mSurfaceHolder = getHolder();

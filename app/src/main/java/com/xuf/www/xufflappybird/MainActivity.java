@@ -18,4 +18,19 @@ public class MainActivity extends Activity {
         mFlappySurfaceView = new FlappySurfaceView(this);
         setContentView(mFlappySurfaceView);
     }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+    }
 }
