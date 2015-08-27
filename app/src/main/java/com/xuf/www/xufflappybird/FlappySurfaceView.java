@@ -346,6 +346,7 @@ public class FlappySurfaceView extends SurfaceView implements Runnable, SurfaceH
         } catch (Exception e){
             Log.e(TAG, "_draw() exception occurred!", e);
         } finally {
+            //这里必须判空，不然back键回退桌面时会崩溃。
             if (mCanvas != null){
                 mSurfaceHolder.unlockCanvasAndPost(mCanvas);
             }
