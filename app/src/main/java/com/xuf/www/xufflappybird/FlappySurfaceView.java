@@ -7,6 +7,7 @@ import android.graphics.Canvas;
 import android.graphics.PixelFormat;
 import android.graphics.RectF;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
@@ -20,6 +21,8 @@ import java.util.Random;
  * Created by lenov0 on 2015/8/16.
  */
 public class FlappySurfaceView extends SurfaceView implements Runnable, SurfaceHolder.Callback, View.OnTouchListener{
+
+    private static final String TAG = "FlappySurfaceView";
 
     private static final float mXSpeed = 10;
     private static final float mYDownAccelerate = 7;
@@ -322,24 +325,31 @@ public class FlappySurfaceView extends SurfaceView implements Runnable, SurfaceH
     }
 
     private void _draw(){
-        mCanvas = mSurfaceHolder.lockCanvas();
-        if (mCanvas != null){
-            //draw
-            _drawBackground();
-            _drawBird();
-            if (mGameStatus != GameStatus.WAITING){
-                _drawPipe();
+        try{
+            mCanvas = mSurfaceHolder.lockCanvas();
+            if (mCanvas != null){
+                //draw
+                _drawBackground();
+                _drawBird();
+                if (mGameStatus != GameStatus.WAITING){
+                    _drawPipe();
+                }
+                if (mGameStatus == GameStatus.WAITING){
+                    _drawReady();
+                }
+                if (mGameStatus == GameStatus.OVER){
+                    _drawGameOver();
+                }
+                _drawScore(mScore);
+                _drawLand();
             }
-            if (mGameStatus == GameStatus.WAITING){
-                _drawReady();
+        } catch (Exception e){
+            Log.e(TAG, "_draw() exception occurred!", e);
+        } finally {
+            if (mCanvas != null){
+                mSurfaceHolder.unlockCanvasAndPost(mCanvas);
             }
-            if (mGameStatus == GameStatus.OVER){
-                _drawGameOver();
-            }
-            _drawScore(mScore);
-            _drawLand();
         }
-        mSurfaceHolder.unlockCanvasAndPost(mCanvas);
     }
 
     private void _drawBackground(){
