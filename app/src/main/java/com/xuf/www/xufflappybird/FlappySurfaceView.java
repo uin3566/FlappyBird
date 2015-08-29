@@ -1,11 +1,16 @@
 package com.xuf.www.xufflappybird;
 
+import android.app.Activity;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
+import android.graphics.Paint;
 import android.graphics.PixelFormat;
 import android.graphics.RectF;
+import android.graphics.Typeface;
+import android.graphics.drawable.Drawable;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.MotionEvent;
@@ -23,8 +28,9 @@ import java.util.Random;
 public class FlappySurfaceView extends SurfaceView implements Runnable, SurfaceHolder.Callback, View.OnTouchListener{
 
     private static final String TAG = "FlappySurfaceView";
+    private static final String HIGH_SCORE_PREFERENCE = "SharedPreferences";
+    private static final String KEY_HIGH_SCORE = "key_high_score";
 
-    private static final float mXSpeed = 10;
     private static final float mYDownAccelerate = 7;
 
     private Context mContext;
@@ -40,6 +46,12 @@ public class FlappySurfaceView extends SurfaceView implements Runnable, SurfaceH
                              R.mipmap.font_4, R.mipmap.font_5, R.mipmap.font_6, R.mipmap.font_7,
                              R.mipmap.font_8, R.mipmap.font_9};
 
+    private int mScore;
+    private int mHighScore;
+
+    private float mXSpeed;
+    private int mScoreIncrease;
+
     private SurfaceHolder mSurfaceHolder;
     private Canvas mCanvas;
     private Thread mThread;
@@ -52,7 +64,6 @@ public class FlappySurfaceView extends SurfaceView implements Runnable, SurfaceH
     private boolean mCurPipeIsOne;
     //若小鸟直接碰到下管道，则不需要更换bird0_4图
     private boolean mNeedUseDownBitmap;
-    private int mScore;
     private boolean mPlusScoreFlag1 = true;
     private boolean mPlusScoreFlag2 = true;
 
@@ -109,6 +120,16 @@ public class FlappySurfaceView extends SurfaceView implements Runnable, SurfaceH
 
         _initResources();
         setOnTouchListener(this);
+
+        Activity activity = (Activity)mContext;
+        boolean isSpeedMode = activity.getIntent().getBooleanExtra(MainActivity.EXTRA_IS_SPEED_MODE, false);
+        if (isSpeedMode){
+            mXSpeed = 20;
+            mScoreIncrease = 2;
+        } else {
+            mXSpeed = 10;
+            mScoreIncrease = 1;
+        }
     }
 
     private void _initResources(){
@@ -129,6 +150,22 @@ public class FlappySurfaceView extends SurfaceView implements Runnable, SurfaceH
         mGameOverBitmap = BitmapFactory.decodeResource(getResources(), R.mipmap.game_over);
     }
 
+    public void releaseResources(){
+        mDayBgBitmap.recycle();
+        mLandBitmap.recycle();
+        for (Bitmap bitmap : mBirdBitmaps){
+            bitmap.recycle();
+        }
+        mBirdDownBitmap.recycle();
+        mPipeDownBitmap.recycle();
+        mPipeUpBitmap.recycle();
+        mGetReadyBitmap.recycle();
+        mTutorialBitmap.recycle();
+        mTitleBitmap.recycle();
+        mGameOverBitmap.recycle();
+        mIsRunning = false;
+    }
+
     @Override
     protected void onSizeChanged(int w, int h, int oldw, int oldh) {
         super.onSizeChanged(w, h, oldw, oldh);
@@ -143,7 +180,7 @@ public class FlappySurfaceView extends SurfaceView implements Runnable, SurfaceH
         mBirdWidth2 = mBirdHeight * 1.1f;
         mBirdHeight2 = mBirdWidth;
         mBirdY = mLandY / 2 - mBirdHeight;
-        mBirdJump = mBirdHeight / 2;
+        mBirdJump = mBirdHeight * 0.6f;
 
         mPipeGap = mLandY / 5;
         mMinPipeHeight = mPipeGap * 0.5f;
@@ -169,7 +206,6 @@ public class FlappySurfaceView extends SurfaceView implements Runnable, SurfaceH
         mPipeX2 = mPipeX1 + mViewWidth / 2 + mPipeWidth / 2;
         mUpPipeHeight1 = new Random().nextFloat() * (mMaxPipeHeight - mMinPipeHeight) + mMinPipeHeight;
         mUpPipeHeight2 = new Random().nextFloat() * (mMaxPipeHeight - mMinPipeHeight) + mMinPipeHeight;
-        _draw();
     }
 
     @Override
@@ -289,6 +325,8 @@ public class FlappySurfaceView extends SurfaceView implements Runnable, SurfaceH
             }
             if (_isGameOver()){
                 mGameStatus = GameStatus.OVER;
+                SharedPreferences preferences = mContext.getSharedPreferences(HIGH_SCORE_PREFERENCE, Context.MODE_PRIVATE);
+                mHighScore = preferences.getInt(KEY_HIGH_SCORE, 0);
             }
         } else if (mGameStatus == GameStatus.OVER){
             if (mDieOnLand){
@@ -408,13 +446,23 @@ public class FlappySurfaceView extends SurfaceView implements Runnable, SurfaceH
             mUpPipeHeight2 = new Random().nextFloat() * (mMaxPipeHeight - mMinPipeHeight) + mMinPipeHeight;
         }
 
+        SharedPreferences preferences = mContext.getSharedPreferences(HIGH_SCORE_PREFERENCE, Context.MODE_PRIVATE);
+        SharedPreferences.Editor editor = preferences.edit();
         if (mPipeX1 + mPipeWidth < mBirdX && mPlusScoreFlag1){
-            mScore++;
+            mScore += mScoreIncrease;
             mPlusScoreFlag1 = false;
+            if (mScore > mHighScore){
+                editor.putInt(KEY_HIGH_SCORE, mScore);
+                editor.commit();
+            }
         }
         if (mPipeX2 + mPipeWidth < mBirdX && mPlusScoreFlag2){
-            mScore++;
+            mScore += mScoreIncrease;
             mPlusScoreFlag2 = false;
+            if (mScore > mHighScore){
+                editor.putInt(KEY_HIGH_SCORE, mScore);
+                editor.commit();
+            }
         }
 
         if (mGameStatus != GameStatus.OVER){
@@ -506,10 +554,28 @@ public class FlappySurfaceView extends SurfaceView implements Runnable, SurfaceH
 
     private void _drawGameOver(){
         float center = mViewWidth / 2;
+
+        float panelWidth = mViewWidth * 0.65f;
+        float panelHeight = panelWidth * 0.45f;
+        float panelY = mLandY / 2;
+        Drawable drawable = mContext.getResources().getDrawable(R.drawable.shape_score_panel);
+        drawable.setBounds((int)(center - panelWidth / 2), (int)panelY, (int)(center + panelWidth / 2), (int)(panelY + panelHeight));
+        drawable.draw(mCanvas);
+
         float gameOverWidth = mPipeWidth * 3;
-        float gameOverHeight = mPipeGap * 0.7f;
+        float gameOverHeight = mPipeGap * 0.6f;
         float gameOverY = mLandY / 2;
-        RectF rectF = new RectF(center - gameOverWidth / 2, gameOverY, center + gameOverWidth / 2, gameOverY + gameOverHeight);
+
+        RectF rectF = new RectF(center - gameOverWidth / 2, gameOverY + mBirdHeight* 0.3f, center + gameOverWidth / 2, gameOverY + mBirdHeight* 0.3f + gameOverHeight);
         mCanvas.drawBitmap(mGameOverBitmap, null, rectF, null);
+
+        Paint paint = new Paint();
+        paint.setTextAlign(Paint.Align.CENTER);
+        paint.setTextSize(mBirdHeight);
+        Typeface font = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL);
+        paint.setTypeface(font);
+        paint.setColor(mContext.getResources().getColor(R.color.score_color));
+        mCanvas.drawText("score:" + mScore + "  best:" + mHighScore, center, gameOverY + gameOverHeight + mBirdHeight * 1.2f, paint);
     }
+
 }
