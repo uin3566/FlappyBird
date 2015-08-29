@@ -29,11 +29,11 @@ public class GameActivity extends Activity {
     @Override
     protected void onStop() {
         super.onStop();
-        mFlappySurfaceView.releaseResources();
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        mFlappySurfaceView.releaseResources();
     }
 }
